@@ -4,8 +4,11 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 
-from theatre.models import Genre, Actor, TheatreHall, Play, Reservation
+from theatre.models import Genre, Actor, TheatreHall, Play, Reservation, Performance
 from theatre.permissions import IsAdminOrIfAuthenticatedReadOnly
+from theatre.serializers import GenreSerializer, ActorSerializer, TheatreHallSerializer, PlaySerializer, \
+    PlayListSerializer, PlayDetailSerializer, PlayImageSerializer, ReservationSerializer, ReservationListSerializer, \
+    TicketSeatsSerializer
 
 
 # Create your views here.
@@ -21,17 +24,26 @@ class ActorViewSet(viewsets.ModelViewSet):
     permission_classes = (IsAdminOrIfAuthenticatedReadOnly,)
 
 
-class TheatreHallViewSet:
+class TheatreHallViewSet(viewsets.ModelViewSet):
     queryset = TheatreHall.objects.all()
     serializer_class = TheatreHallSerializer
     permission_classes = (IsAdminOrIfAuthenticatedReadOnly,)
 
 
-class PerformanceViewSet:
-    pass
+class PerformanceViewSet(viewsets.ModelViewSet):
+    play = PlayListSerializer(many=False, read_only=True)
+    theatre_hall = TheatreHallSerializer(many=False, read_only=True)
+    taken_places = TicketSeatsSerializer(
+        source="tickets",
+        many=True,
+        read_only=True
+    )
 
+    class Meta:
+        model = Performance
+        fields = ("id", "show_time", "play", "theatre_hall", "taken_places")
 
-class PlayViewSet:
+class PlayViewSet(viewsets.ModelViewSet):
     queryset = Play.objects.prefetch_related("genres", "actors")
     serializer_class = PlaySerializer
     permission_classes = (IsAdminOrIfAuthenticatedReadOnly,)
@@ -97,7 +109,7 @@ class ReservationPagination(PageNumberPagination):
     max_page_size = 100
 
 
-class ReservationViewSet:
+class ReservationViewSet(viewsets.ModelViewSet):
     queryset = Reservation.objects.prefetch_related(
         "tickets__movie_session__movie", "tickets__movie_session__cinema_hall"
     )
