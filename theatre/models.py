@@ -6,6 +6,7 @@ from theatre_booking import settings
 class Play(models.Model):
     title = models.CharField(max_length=100)
     description = models.TextField()
+    acts = models.PositiveIntegerField()
 
 
 class Actor(models.Model):
@@ -39,5 +40,3 @@ class Ticket(models.Model):
     seat = models.PositiveIntegerField()
     performance = models.ForeignKey(Performance, on_delete=models.CASCADE)
     reservation = models.ForeignKey(Reservation, on_delete=models.CASCADE)
-
-

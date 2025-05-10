@@ -26,6 +26,7 @@ class TheatreHallViewSet:
     serializer_class = TheatreHallSerializer
     permission_classes = (IsAdminOrIfAuthenticatedReadOnly,)
 
+
 class PerformanceViewSet:
     pass
 
@@ -94,6 +95,7 @@ class PlayViewSet:
 class ReservationPagination(PageNumberPagination):
     page_size = 10
     max_page_size = 100
+
 
 class ReservationViewSet:
     queryset = Reservation.objects.prefetch_related(
