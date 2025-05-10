@@ -27,7 +27,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
-AUTH_USER_MODEL = "user.User"
+AUTH_USER_MODEL = "visitor.User"
 
 
 # Application definition
@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "theatre",
     "rest_framework",
     "django.contrib.auth",
+    "django.contrib.admin",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
