@@ -2,7 +2,14 @@ from django.db import transaction
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from theatre.models import Genre, Actor, TheatreHall, Play, Performance, Ticket, Reservation
+from theatre.models import (Genre,
+                            Actor,
+                            TheatreHall,
+                            Play,
+                            Performance,
+                            Ticket,
+                            Reservation
+                            )
 
 
 class GenreSerializer(serializers.ModelSerializer):
@@ -35,6 +42,7 @@ class PlaySerializer(serializers.ModelSerializer):
             "actors",
         )
 
+
 class PlayListSerializer(serializers.ModelSerializer):
     genres = serializers.SlugRelatedField(many=True,
                                           read_only=True,
@@ -46,7 +54,14 @@ class PlayListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Play
-        fields = ("id", "genres", "title", "acts", "actors")
+        fields = ("id",
+                  "genres",
+                  "title",
+                  "acts",
+                  "actors",
+                  "image",
+                  )
+
 
 class PlayDetailSerializer(serializers.ModelSerializer):
     genres = GenreSerializer(many=True, read_only=True)
@@ -64,6 +79,7 @@ class PlayDetailSerializer(serializers.ModelSerializer):
             "image",
         )
 
+
 class PlayImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = Play
@@ -71,6 +87,8 @@ class PlayImageSerializer(serializers.ModelSerializer):
 
 
 class PerformanceSerializer(serializers.ModelSerializer):
+    show_time = serializers.DateTimeField(format="%d-%m-%Y %H:%M:%S", read_only=True)
+
     class Meta:
         model = Performance
         fields = ("id", "show_time", "play", "theatre_hall")
@@ -102,9 +120,6 @@ class PerformanceListSerializer(PerformanceSerializer):
 
 
 class TicketSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Ticket
-        fields = ("id", "row", "seat", "performance")
 
     def validate(self, attrs):
         data = super(TicketSerializer, self).validate(attrs=attrs)
@@ -123,6 +138,10 @@ class TicketSerializer(serializers.ModelSerializer):
             ValidationError,
         )
         return data
+
+    class Meta:
+        model = Ticket
+        fields = ("id", "row", "seat", "performance")
 
 
 class TicketListSerializer(TicketSerializer):
@@ -151,6 +170,7 @@ class PerformanceDetailSerializer(PerformanceSerializer):
 
 class ReservationSerializer(serializers.ModelSerializer):
     tickets = TicketSerializer(many=True, read_only=False, allow_empty=False)
+    created_at = serializers.DateTimeField(format="%d-%m-%Y %H:%M:%S", read_only=True)
 
     class Meta:
         model = Reservation

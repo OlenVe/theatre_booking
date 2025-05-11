@@ -1,53 +1,83 @@
+from datetime import datetime
+
+from django.db.models import F, Count
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 
-from theatre.models import Genre, Actor, TheatreHall, Play, Reservation, Performance
-from theatre.permissions import IsAdminOrIfAuthenticatedReadOnly
-from theatre.serializers import GenreSerializer, ActorSerializer, TheatreHallSerializer, PlaySerializer, \
-    PlayListSerializer, PlayDetailSerializer, PlayImageSerializer, ReservationSerializer, ReservationListSerializer, \
-    TicketSeatsSerializer
-
+from theatre.models import Genre, Actor, TheatreHall, Play, Reservation, Performance, Ticket
+from theatre.serializers import (
+    GenreSerializer,
+    ActorSerializer,
+    TheatreHallSerializer,
+    PlaySerializer,
+    PlayListSerializer,
+    PlayDetailSerializer,
+    PlayImageSerializer,
+    ReservationSerializer,
+    ReservationListSerializer,
+    TicketSeatsSerializer,
+    PerformanceSerializer, PerformanceListSerializer, PerformanceDetailSerializer
+)
 
 
 class GenreViewSet(viewsets.ModelViewSet):
     queryset = Genre.objects.all()
     serializer_class = GenreSerializer
-    permission_classes = (IsAdminOrIfAuthenticatedReadOnly,)
 
 
 class ActorViewSet(viewsets.ModelViewSet):
     queryset = Actor.objects.all()
     serializer_class = ActorSerializer
-    permission_classes = (IsAdminOrIfAuthenticatedReadOnly,)
 
 
 class TheatreHallViewSet(viewsets.ModelViewSet):
     queryset = TheatreHall.objects.all()
     serializer_class = TheatreHallSerializer
-    permission_classes = (IsAdminOrIfAuthenticatedReadOnly,)
 
 
 class PerformanceViewSet(viewsets.ModelViewSet):
-    queryset = Performance.objects.all()
-    play = PlayListSerializer(many=False, read_only=True)
-    theatre_hall = TheatreHallSerializer(many=False, read_only=True)
-    taken_places = TicketSeatsSerializer(
-        source="tickets",
-        many=True,
-        read_only=True
+    queryset = (
+        Performance.objects.all()
+        .select_related("theatre_hall", "play")
+        .annotate(
+            tickets_available=(
+                F("theatre_hall__rows") * F("theatre_hall__seats_in_row")
+                - Count("tickets")
+            )
+        )
     )
+    serializer_class = PerformanceSerializer
 
-    class Meta:
-        model = Performance
-        fields = ("id", "show_time", "play", "theatre_hall", "taken_places")
+    def get_queryset(self):
+        date = self.request.query_params.get("date")
+        movie_id_str = self.request.query_params.get("movie")
+
+        queryset = self.queryset
+
+        if date:
+            date = datetime.strptime(date, "%Y-%m-%d").date()
+            queryset = queryset.filter(show_time__date=date)
+
+        if movie_id_str:
+            queryset = queryset.filter(movie_id=int(movie_id_str))
+
+        return queryset
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return PerformanceListSerializer
+
+        if self.action == "retrieve":
+            return PerformanceDetailSerializer
+
+        return PerformanceSerializer
 
 class PlayViewSet(viewsets.ModelViewSet):
     queryset = Play.objects.prefetch_related("genres", "actors")
     serializer_class = PlaySerializer
-    permission_classes = (IsAdminOrIfAuthenticatedReadOnly,)
 
     @staticmethod
     def _params_to_ints(qs):
@@ -112,7 +142,7 @@ class ReservationPagination(PageNumberPagination):
 
 class ReservationViewSet(viewsets.ModelViewSet):
     queryset = Reservation.objects.prefetch_related(
-        "tickets__movie_session__movie", "tickets__movie_session__cinema_hall"
+        "tickets__performance__play", "tickets__performance__theatre_hall"
     )
     serializer_class = ReservationSerializer
     pagination_class = ReservationPagination
@@ -129,3 +159,8 @@ class ReservationViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+
+# class TicketViewSet(viewsets.ModelViewSet):
+#     queryset = Ticket.objects.all()
+#     permission_classes = (IsAuthenticated,)

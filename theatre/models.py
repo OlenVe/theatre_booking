@@ -17,7 +17,7 @@ def movie_image_file_path(instance, filename):
 
 
 class Genre(models.Model):
-    name = models.CharField(max_length=100)
+    name = models.CharField(max_length=100, unique=True)
 
     def __str__(self):
         return self.name
@@ -64,18 +64,30 @@ class Reservation(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
 
+    def __str__(self):
+        return str(self.created_at)
+
 
 class Performance(models.Model):
     play = models.ForeignKey(Play, on_delete=models.CASCADE)
     theatre_hall = models.ForeignKey(TheatreHall, on_delete=models.CASCADE)
     show_time = models.DateTimeField()
 
+    def __str__(self):
+        return self.play.title + " " + str(self.show_time)
+
 
 class Ticket(models.Model):
     row = models.PositiveIntegerField()
     seat = models.PositiveIntegerField()
-    performance = models.ForeignKey(Performance, on_delete=models.CASCADE)
-    reservation = models.ForeignKey(Reservation, on_delete=models.CASCADE)
+    performance = models.ForeignKey(Performance,
+                                    on_delete=models.CASCADE,
+                                    related_name="tickets"
+                                    )
+    reservation = models.ForeignKey(Reservation,
+                                    on_delete=models.CASCADE,
+                                    related_name="tickets"
+                                    )
 
     @staticmethod
     def validate_ticket(row, seat, theatre_hall, error_to_raise):
