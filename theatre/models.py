@@ -7,6 +7,8 @@ from rest_framework.exceptions import ValidationError
 
 from theatre_booking import settings
 
+
+
 def movie_image_file_path(instance, filename):
     _, extension = os.path.splitext(filename)
     filename = f"{slugify(instance.title)}-{uuid.uuid4()}{extension}"
@@ -14,14 +16,11 @@ def movie_image_file_path(instance, filename):
     return os.path.join("uploads/movies/", filename)
 
 
-class Play(models.Model):
-    title = models.CharField(max_length=100)
-    description = models.TextField()
-    acts = models.PositiveIntegerField()
-    image = models.ImageField(null=True, upload_to=movie_image_file_path)
+class Genre(models.Model):
+    name = models.CharField(max_length=100)
 
     def __str__(self):
-        return self.title
+        return self.name
 
 
 class Actor(models.Model):
@@ -36,8 +35,16 @@ class Actor(models.Model):
         return f"{self.first_name} {self.last_name}"
 
 
-class Genre(models.Model):
-    name = models.CharField(max_length=100)
+class Play(models.Model):
+    title = models.CharField(max_length=100)
+    description = models.TextField()
+    acts = models.PositiveIntegerField()
+    genres = models.ManyToManyField(Genre, blank=True)
+    actors = models.ManyToManyField(Actor, blank=True)
+    image = models.ImageField(null=True, upload_to=movie_image_file_path)
+
+    def __str__(self):
+        return self.title
 
 
 class TheatreHall(models.Model):

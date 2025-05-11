@@ -13,11 +13,11 @@ from theatre.views import (
 app_name = "theatre"
 
 router = routers.DefaultRouter()
-router.register("genres", GenreViewSet, basename="genre")
-router.register("actors", ActorViewSet, basename="actor")
-router.register("theatre_halls", TheatreHallViewSet, basename="theatre_hall")
-router.register("performances", PerformanceViewSet, basename="performance")
-router.register("plays", PlayViewSet, basename="play")
-router.register("reservations", ReservationViewSet, basename="reservation")
+router.register("genres", GenreViewSet, basename="genres")
+router.register("actors", ActorViewSet, basename="actors")
+router.register("theatre_halls", TheatreHallViewSet, basename="theatre_halls")
+router.register("performances", PerformanceViewSet, basename="performances")
+router.register("plays", PlayViewSet, basename="plays")
+router.register("reservations", ReservationViewSet, basename="reservations")
 
 urlpatterns = [path("", include(router.urls))]

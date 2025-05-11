@@ -11,7 +11,7 @@ from theatre.serializers import GenreSerializer, ActorSerializer, TheatreHallSer
     TicketSeatsSerializer
 
 
-# Create your views here.
+
 class GenreViewSet(viewsets.ModelViewSet):
     queryset = Genre.objects.all()
     serializer_class = GenreSerializer
@@ -31,6 +31,7 @@ class TheatreHallViewSet(viewsets.ModelViewSet):
 
 
 class PerformanceViewSet(viewsets.ModelViewSet):
+    queryset = Performance.objects.all()
     play = PlayListSerializer(many=False, read_only=True)
     theatre_hall = TheatreHallSerializer(many=False, read_only=True)
     taken_places = TicketSeatsSerializer(
