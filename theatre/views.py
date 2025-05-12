@@ -3,11 +3,13 @@ from datetime import datetime
 from django.db.models import F, Count
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
+from rest_framework.exceptions import MethodNotAllowed
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 
 from theatre.models import Genre, Actor, TheatreHall, Play, Reservation, Performance, Ticket
+from theatre.permissions import IsAdminOrReadOnly
 from theatre.serializers import (
     GenreSerializer,
     ActorSerializer,
@@ -19,23 +21,32 @@ from theatre.serializers import (
     ReservationSerializer,
     ReservationListSerializer,
     TicketSeatsSerializer,
-    PerformanceSerializer, PerformanceListSerializer, PerformanceDetailSerializer
+    PerformanceSerializer,
+    PerformanceListSerializer,
+    PerformanceDetailSerializer,
+    TicketSerializer,
+    TicketListSerializer,
+    TicketDetailSerializer,
+    ReservationCreateSerializer, TicketBulkCreateSerializer
 )
 
 
 class GenreViewSet(viewsets.ModelViewSet):
     queryset = Genre.objects.all()
     serializer_class = GenreSerializer
+    permission_classes = (IsAdminOrReadOnly,)
 
 
 class ActorViewSet(viewsets.ModelViewSet):
     queryset = Actor.objects.all()
     serializer_class = ActorSerializer
+    permission_classes = (IsAdminOrReadOnly,)
 
 
 class TheatreHallViewSet(viewsets.ModelViewSet):
     queryset = TheatreHall.objects.all()
     serializer_class = TheatreHallSerializer
+    permission_classes = (IsAdminOrReadOnly,)
 
 
 class PerformanceViewSet(viewsets.ModelViewSet):
@@ -50,10 +61,11 @@ class PerformanceViewSet(viewsets.ModelViewSet):
         )
     )
     serializer_class = PerformanceSerializer
+    permission_classes = (IsAdminOrReadOnly,)
 
     def get_queryset(self):
         date = self.request.query_params.get("date")
-        movie_id_str = self.request.query_params.get("movie")
+        play_id_str = self.request.query_params.get("play")
 
         queryset = self.queryset
 
@@ -61,8 +73,8 @@ class PerformanceViewSet(viewsets.ModelViewSet):
             date = datetime.strptime(date, "%Y-%m-%d").date()
             queryset = queryset.filter(show_time__date=date)
 
-        if movie_id_str:
-            queryset = queryset.filter(movie_id=int(movie_id_str))
+        if play_id_str:
+            queryset = queryset.filter(movie_id=int(play_id_str))
 
         return queryset
 
@@ -75,9 +87,11 @@ class PerformanceViewSet(viewsets.ModelViewSet):
 
         return PerformanceSerializer
 
+
 class PlayViewSet(viewsets.ModelViewSet):
     queryset = Play.objects.prefetch_related("genres", "actors")
     serializer_class = PlaySerializer
+    permission_classes = (IsAdminOrReadOnly,)
 
     @staticmethod
     def _params_to_ints(qs):
@@ -124,9 +138,9 @@ class PlayViewSet(viewsets.ModelViewSet):
         permission_classes=[IsAdminUser],
     )
     def upload_image(self, request, pk=None):
-        """Endpoint for uploading image to specific movie"""
-        movie = self.get_object()
-        serializer = self.get_serializer(movie, data=request.data)
+        """Endpoint for uploading image to specific play"""
+        play = self.get_object()
+        serializer = self.get_serializer(play, data=request.data)
 
         if serializer.is_valid():
             serializer.save()
@@ -151,16 +165,73 @@ class ReservationViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return Reservation.objects.filter(user=self.request.user)
 
-    def get_serializer_class(self):
-        if self.action == "list":
-            return ReservationListSerializer
 
-        return ReservationSerializer
+    def get_serializer_class(self):
+        serializer_class = self.serializer_class
+
+        if self.action == "list":
+            serializer_class =  ReservationListSerializer
+        if self.action == "create":
+            serializer_class = ReservationCreateSerializer
+
+        return serializer_class
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
 
-# class TicketViewSet(viewsets.ModelViewSet):
-#     queryset = Ticket.objects.all()
-#     permission_classes = (IsAuthenticated,)
+class TicketViewSet(viewsets.ModelViewSet):
+    queryset = Ticket.objects.all()
+    serializer_class = TicketSerializer
+    permission_classes = (IsAuthenticated,)
+
+    def get_queryset(self):
+        queryset = self.queryset
+        queryset = queryset.select_related("performance", "reservation")
+        title = self.request.query_params.get("title")
+
+        if title:
+            queryset = queryset.filter(performance__play__title=title)
+
+        return queryset
+
+    def get_serializer_class(self):
+        serializer_class = self.serializer_class
+
+        if self.action == "list":
+            serializer_class = TicketListSerializer
+
+        if self.action == "create":
+            serializer_class = TicketSerializer
+
+        if self.action == "retrieve":
+            serializer_class = TicketDetailSerializer
+
+        return serializer_class
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        reservation = Reservation.objects.create(user=user)
+        serializer.save(reservation=reservation)
+
+    # @action(
+    #     methods=["POST"],
+    #     detail=False,
+    #     url_path="bulk-create",
+    #     permission_classes=[IsAuthenticated]
+    # )
+    # def bulk_create(self, request):
+    #
+    #     tickets_data = request.data
+    #     user = self.request.user
+    #
+    #     reservation = Reservation.objects.create(user=user)
+    #
+    #     for ticket_data in tickets_data:
+    #         ticket_data['reservation'] = reservation.id
+    #
+    #     serializer = TicketBulkCreateSerializer(data=tickets_data, many=True, context={"request": request})
+    #     serializer.is_valid(raise_exception=True)
+    #     serializer.save()
+    #
+    #     return Response(ReservationSerializer(reservation).data, status=status.HTTP_201_CREATED)

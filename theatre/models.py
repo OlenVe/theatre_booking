@@ -2,6 +2,7 @@ import os
 import uuid
 
 from django.db import models
+from django.db.models.constraints import UniqueConstraint
 from django.utils.text import slugify
 from rest_framework.exceptions import ValidationError
 
@@ -13,7 +14,7 @@ def movie_image_file_path(instance, filename):
     _, extension = os.path.splitext(filename)
     filename = f"{slugify(instance.title)}-{uuid.uuid4()}{extension}"
 
-    return os.path.join("uploads/movies/", filename)
+    return os.path.join("uploads/plays/", filename)
 
 
 class Genre(models.Model):
@@ -72,6 +73,9 @@ class Performance(models.Model):
     play = models.ForeignKey(Play, on_delete=models.CASCADE)
     theatre_hall = models.ForeignKey(TheatreHall, on_delete=models.CASCADE)
     show_time = models.DateTimeField()
+
+    class Meta:
+        unique_together = ("play", "show_time")
 
     def __str__(self):
         return self.play.title + " " + str(self.show_time)
@@ -133,5 +137,8 @@ class Ticket(models.Model):
         )
 
     class Meta:
-        unique_together = ("performance", "row", "seat")
-        # ordering = ["row", "seat"]
+        constraints = [
+            UniqueConstraint(
+                fields=("performance", "row", "seat"), name="unique_ticket"
+            )
+        ]

@@ -119,36 +119,7 @@ class PerformanceListSerializer(PerformanceSerializer):
         )
 
 
-class TicketSerializer(serializers.ModelSerializer):
-
-    def validate(self, attrs):
-        data = super(TicketSerializer, self).validate(attrs=attrs)
-
-        required_fields = ["row", "seat", "performance"]
-        missing = [field for field in required_fields if field not in attrs]
-        if missing:
-            raise ValidationError(
-                {field: "This field is required." for field in missing}
-            )
-
-        Ticket.validate_ticket(
-            attrs["row"],
-            attrs["seat"],
-            attrs["performance"].theatre_hall,
-            ValidationError,
-        )
-        return data
-
-    class Meta:
-        model = Ticket
-        fields = ("id", "row", "seat", "performance")
-
-
-class TicketListSerializer(TicketSerializer):
-    performance = PerformanceSerializer(many=False, read_only=True)
-
-
-class TicketSeatsSerializer(TicketSerializer):
+class TicketSeatsSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ticket
         fields = ("row", "seat")
@@ -166,6 +137,116 @@ class PerformanceDetailSerializer(PerformanceSerializer):
     class Meta:
         model = Performance
         fields = ("id", "show_time", "play", "theatre_hall", "taken_places")
+
+
+class TicketSerializer(serializers.ModelSerializer):
+    performance_title = serializers.CharField(write_only=True)
+    performance_time = serializers.DateTimeField(write_only=True)
+    # reservation = serializers.BooleanField(write_only=True, default=False)
+    performance = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Ticket
+        fields = (
+            "id",
+            "performance_title",
+            "performance_time",
+            "row",
+            "seat",
+            # "reservation",
+            "performance",
+        )
+        # read_only_fields = ("id", "reservation")
+        read_only_fields = ("id", )
+
+    def validate(self, data):
+        performance_title = data.get("performance_title")
+        performance_time = data.get("performance_time")
+
+        performance = Performance.objects.filter(
+            play__title=performance_title, show_time=performance_time
+        )
+
+        if not performance.exists():
+            raise serializers.ValidationError(
+                {
+                    "performance": "Wrong title or time"
+                }
+            )
+        if performance.count() > 1:
+            raise serializers.ValidationError(
+                {
+                    "performance": "Only one time."
+                }
+            )
+
+        data["performance"] = performance.first()
+        return data
+
+    def get_performance(self, obj):
+        performance_serializer = PerformanceSerializer(
+            instance=obj.performance, context=self.context
+        )
+        return performance_serializer.data
+
+    def create(self, validated_data):
+        validated_data.pop("performance_title")
+        validated_data.pop("performance_time")
+
+        # reservation_flag = validated_data.pop("reservation", False)
+        performance = validated_data.pop("performance")
+
+        with transaction.atomic():
+            # reservation = None
+            # if reservation_flag:
+            user = self.context["request"].user
+            reservation = Reservation.objects.create(user=user)
+            validated_data.pop("reservation", None)
+
+            ticket = Ticket.objects.create(
+                performance=performance,
+                reservation=reservation,
+                **validated_data
+            )
+
+
+        return ticket
+
+
+class TicketListSerializer(serializers.ModelSerializer):
+    performance = serializers.CharField(
+        source="performance.play.title", read_only=True
+    )
+    reservation = serializers.CharField(source="reservation.user", read_only=True)
+    show_time = serializers.CharField(source="performance.show_time")
+
+    class Meta:
+        model = Ticket
+        fields = (
+            "id",
+            "performance",
+            "row",
+            "seat",
+            "reservation",
+            "show_time",
+        )
+
+
+class TicketDetailSerializer(serializers.ModelSerializer):
+    performance = PerformanceDetailSerializer()
+    reservation = serializers.CharField(source="reservation.user", read_only=True)
+    show_time = serializers.CharField(source="performance.show_time")
+
+    class Meta:
+        model = Ticket
+        fields = (
+            "id",
+            "performance",
+            "row",
+            "seat",
+            "reservation",
+            "show_time",
+        )
 
 
 class ReservationSerializer(serializers.ModelSerializer):
@@ -187,3 +268,60 @@ class ReservationSerializer(serializers.ModelSerializer):
 
 class ReservationListSerializer(ReservationSerializer):
     tickets = TicketListSerializer(many=True, read_only=True)
+
+
+class ReservationCreateSerializer(serializers.ModelSerializer):
+    tickets = TicketSeatsSerializer(many=True)
+
+    class Meta:
+        model = Reservation
+        fields = (
+            "id",
+            "tickets",
+            "user",
+            "created_at",
+        )
+
+    def get_tickets(self, obj):
+        tickets = obj.tickets.all()
+        return [ticket.show_session.astronomy_show.title for ticket in tickets]
+
+
+class TicketBulkCreateSerializer(serializers.Serializer):
+    tickets = TicketSeatsSerializer(many=True)
+    performance_title = serializers.CharField()
+    performance_time = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S")
+
+    def validate(self, attrs):
+        title = attrs["performance_title"]
+        time = attrs["performance_time"]
+
+        performances = Performance.objects.filter(
+            play__title=title, show_time=time
+        )
+        if not performances.exists():
+            raise serializers.ValidationError("Wrong time")
+        if performances.count() > 1:
+            raise serializers.ValidationError("Chose only 1 performance")
+        attrs["performance"] = performances.first()
+        return attrs
+
+    def create(self, validated_data):
+        performance = validated_data["performance"]
+        tickets_data = validated_data["tickets"]
+        user = self.context["request"].user
+
+        with transaction.atomic():
+            reservation = Reservation.objects.create(user=user)
+            tickets = [
+                Ticket(
+                    performance=performance,
+                    reservation=reservation,
+                    row=ticket["row"],
+                    seat=ticket["seat"]
+                )
+                for ticket in tickets_data
+            ]
+            Ticket.objects.bulk_create(tickets)
+
+        return reservation
