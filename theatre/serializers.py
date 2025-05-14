@@ -44,10 +44,7 @@ class PlaySerializer(serializers.ModelSerializer):
 
 
 class PlayListSerializer(serializers.ModelSerializer):
-    genres = serializers.SlugRelatedField(many=True,
-                                          read_only=True,
-                                          slug_field="name"
-                                          )
+    genres = serializers.CharField(source="genre.name", read_only=True)
     actors = serializers.SlugRelatedField(
         many=True, read_only=True, slug_field="full_name"
     )
@@ -96,6 +93,7 @@ class PerformanceSerializer(serializers.ModelSerializer):
 
 class PerformanceListSerializer(PerformanceSerializer):
     play_title = serializers.CharField(source="play.title", read_only=True)
+    play_genre_name = serializers.CharField(source="play.genre.name", read_only=True)
     play_image = serializers.ImageField(source="play.image", read_only=True)
     theatre_hall_name = serializers.CharField(
         source="theatre_hall.name",
@@ -112,6 +110,7 @@ class PerformanceListSerializer(PerformanceSerializer):
             "id",
             "show_time",
             "play_title",
+            "play_genre_name",
             "play_image",
             "theatre_hall_name",
             "theatre_hall_capacity",

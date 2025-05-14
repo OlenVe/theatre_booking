@@ -40,7 +40,7 @@ class Play(models.Model):
     title = models.CharField(max_length=100)
     description = models.TextField()
     acts = models.PositiveIntegerField()
-    genres = models.ManyToManyField(Genre, blank=True)
+    genre = models.ForeignKey(Genre, blank=True, null=True, on_delete=models.CASCADE)
     actors = models.ManyToManyField(Actor, blank=True)
     image = models.ImageField(null=True, upload_to=movie_image_file_path)
 

@@ -1,0 +1,253 @@
+[
+    {
+        "model": "theatre.genre",
+        "pk": 1,
+        "fields": {
+            "name": "Трагедія"
+        }
+    },
+    {
+        "model": "theatre.genre",
+        "pk": 2,
+        "fields": {
+            "name": "Комедія"
+        }
+    },
+    {
+        "model": "theatre.genre",
+        "pk": 3,
+        "fields": {
+            "name": "Драма"
+        }
+    },
+    {
+        "model": "theatre.actor",
+        "pk": 1,
+        "fields": {
+            "first_name": "Леся",
+            "last_name": "Українка"
+        }
+    },
+    {
+        "model": "theatre.actor",
+        "pk": 2,
+        "fields": {
+            "first_name": "Іван",
+            "last_name": "Франко"
+        }
+    },
+    {
+        "model": "theatre.actor",
+        "pk": 3,
+        "fields": {
+            "first_name": "Марія",
+            "last_name": "Заньковецька"
+        }
+    },
+    {
+        "model": "theatre.actor",
+        "pk": 4,
+        "fields": {
+            "first_name": "Микола",
+            "last_name": "Садовський"
+        }
+    },
+    {
+        "model": "theatre.actor",
+        "pk": 5,
+        "fields": {
+            "first_name": "Богдан",
+            "last_name": "Ступка"
+        }
+    },
+    {
+        "model": "theatre.actor",
+        "pk": 6,
+        "fields": {
+            "first_name": "Ада",
+            "last_name": "Роговцева"
+        }
+    },
+    {
+        "model": "theatre.actor",
+        "pk": 7,
+        "fields": {
+            "first_name": "Ольга",
+            "last_name": "Сумська"
+        }
+    },
+    {
+        "model": "theatre.actor",
+        "pk": 8,
+        "fields": {
+            "first_name": "Руслана",
+            "last_name": "Писанка"
+        }
+    },
+    {
+        "model": "theatre.actor",
+        "pk": 9,
+        "fields": {
+            "first_name": "Віталій",
+            "last_name": "Лінецький"
+        }
+    },
+    {
+        "model": "theatre.actor",
+        "pk": 10,
+        "fields": {
+            "first_name": "Наталя",
+            "last_name": "Сумська"
+        }
+    },
+    {
+        "model": "theatre.theatrehall",
+        "pk": 1,
+        "fields": {
+            "name": "Головна зала",
+            "rows": 10,
+            "seats_in_row": 12
+        }
+    },
+    {
+        "model": "theatre.play",
+        "pk": 1,
+        "fields": {
+            "title": "Лісова пісня",
+            "description": "Поетична драма про Мавку та Лукашa.",
+            "acts": 3,
+            "genre": 1,
+            "image": null,
+            "actors": [
+                1,
+                2,
+                3
+            ]
+        }
+    },
+    {
+        "model": "theatre.play",
+        "pk": 2,
+        "fields": {
+            "title": "Сто тисяч",
+            "description": "Комедія про жадібність і людські пороки.",
+            "acts": 2,
+            "genre": 2,
+            "image": null,
+            "actors": [
+                4,
+                5,
+                6
+            ]
+        }
+    },
+    {
+        "model": "theatre.play",
+        "pk": 3,
+        "fields": {
+            "title": "Украдене щастя",
+            "description": "Класична драма про кохання і зраду.",
+            "acts": 3,
+            "genre": 3,
+            "image": null,
+            "actors": [
+                7,
+                8
+            ]
+        }
+    },
+    {
+        "model": "theatre.play",
+        "pk": 4,
+        "fields": {
+            "title": "Мартин Боруля",
+            "description": "Комедія Івана Карпенка-Карого.",
+            "acts": 2,
+            "genre": 2,
+            "image": null,
+            "actors": [
+                9,
+                10
+            ]
+        }
+    },
+    {
+        "model": "theatre.play",
+        "pk": 5,
+        "fields": {
+            "title": "Наталка Полтавка",
+            "description": "Музична драма на народну тематику.",
+            "acts": 1,
+            "genre": 1,
+            "image": null,
+            "actors": [
+                1,
+                5,
+                7
+            ]
+        }
+    },
+    {
+        "model": "theatre.performance",
+        "pk": 1,
+        "fields": {
+            "play": 5,
+            "theatre_hall": 1,
+            "show_time": "2025-05-13T18:00:00Z"
+        }
+    },
+    {
+        "model": "theatre.performance",
+        "pk": 2,
+        "fields": {
+            "play": 5,
+            "theatre_hall": 1,
+            "show_time": "2025-05-14T18:00:00Z"
+        }
+    },
+    {
+        "model": "theatre.performance",
+        "pk": 3,
+        "fields": {
+            "play": 2,
+            "theatre_hall": 1,
+            "show_time": "2025-05-15T18:00:00Z"
+        }
+    },
+    {
+        "model": "theatre.performance",
+        "pk": 4,
+        "fields": {
+            "play": 1,
+            "theatre_hall": 1,
+            "show_time": "2025-05-16T18:00:00Z"
+        }
+    },
+    {
+        "model": "theatre.performance",
+        "pk": 5,
+        "fields": {
+            "play": 2,
+            "theatre_hall": 1,
+            "show_time": "2025-05-17T18:00:00Z"
+        }
+    },
+    {
+        "model": "theatre.performance",
+        "pk": 6,
+        "fields": {
+            "play": 3,
+            "theatre_hall": 1,
+            "show_time": "2025-05-18T18:00:00Z"
+        }
+    },
+    {
+        "model": "theatre.performance",
+        "pk": 7,
+        "fields": {
+            "play": 1,
+            "theatre_hall": 1,
+            "show_time": "2025-05-19T18:00:00Z"
+        }
+    }
+]

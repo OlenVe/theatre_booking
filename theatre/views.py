@@ -49,6 +49,11 @@ class TheatreHallViewSet(viewsets.ModelViewSet):
     permission_classes = (IsAdminOrReadOnly,)
 
 
+class PerformancePagination(PageNumberPagination):
+    page_size = 10
+    max_page_size = 100
+
+
 class PerformanceViewSet(viewsets.ModelViewSet):
     queryset = (
         Performance.objects.all()
@@ -61,6 +66,7 @@ class PerformanceViewSet(viewsets.ModelViewSet):
         )
     )
     serializer_class = PerformanceSerializer
+    pagination_class = PerformancePagination
     permission_classes = (IsAdminOrReadOnly,)
 
     def get_queryset(self):
@@ -89,7 +95,7 @@ class PerformanceViewSet(viewsets.ModelViewSet):
 
 
 class PlayViewSet(viewsets.ModelViewSet):
-    queryset = Play.objects.prefetch_related("genres", "actors")
+    queryset = Play.objects.prefetch_related("actors").select_related("genre")
     serializer_class = PlaySerializer
     permission_classes = (IsAdminOrReadOnly,)
 
@@ -214,24 +220,24 @@ class TicketViewSet(viewsets.ModelViewSet):
         reservation = Reservation.objects.create(user=user)
         serializer.save(reservation=reservation)
 
-    # @action(
-    #     methods=["POST"],
-    #     detail=False,
-    #     url_path="bulk-create",
-    #     permission_classes=[IsAuthenticated]
-    # )
-    # def bulk_create(self, request):
-    #
-    #     tickets_data = request.data
-    #     user = self.request.user
-    #
-    #     reservation = Reservation.objects.create(user=user)
-    #
-    #     for ticket_data in tickets_data:
-    #         ticket_data['reservation'] = reservation.id
-    #
-    #     serializer = TicketBulkCreateSerializer(data=tickets_data, many=True, context={"request": request})
-    #     serializer.is_valid(raise_exception=True)
-    #     serializer.save()
-    #
-    #     return Response(ReservationSerializer(reservation).data, status=status.HTTP_201_CREATED)
+    @action(
+        methods=["POST"],
+        detail=False,
+        url_path="bulk-create",
+        permission_classes=[IsAuthenticated]
+    )
+    def bulk_create(self, request):
+
+        tickets_data = request.data
+        user = self.request.user
+
+        reservation = Reservation.objects.create(user=user)
+
+        for ticket_data in tickets_data:
+            ticket_data["reservation"] = reservation.id
+
+        serializer = TicketBulkCreateSerializer(data=tickets_data, many=True, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(ReservationSerializer(reservation).data, status=status.HTTP_201_CREATED)
