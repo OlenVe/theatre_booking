@@ -1,14 +1,22 @@
 from datetime import datetime
 
 from django.db.models import F, Count
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
-from rest_framework.exceptions import MethodNotAllowed
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 
-from theatre.models import Genre, Actor, TheatreHall, Play, Reservation, Performance, Ticket
+from theatre.models import (Genre,
+                            Actor,
+                            TheatreHall,
+                            Play,
+                            Reservation,
+                            Performance,
+                            Ticket
+                            )
 from theatre.permissions import IsAdminOrReadOnly
 from theatre.serializers import (
     GenreSerializer,
@@ -20,7 +28,6 @@ from theatre.serializers import (
     PlayImageSerializer,
     ReservationSerializer,
     ReservationListSerializer,
-    TicketSeatsSerializer,
     PerformanceSerializer,
     PerformanceListSerializer,
     PerformanceDetailSerializer,
@@ -36,17 +43,29 @@ class GenreViewSet(viewsets.ModelViewSet):
     serializer_class = GenreSerializer
     permission_classes = (IsAdminOrReadOnly,)
 
+    @method_decorator(cache_page(60 * 60 * 24 * 5))
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
 
 class ActorViewSet(viewsets.ModelViewSet):
     queryset = Actor.objects.all()
     serializer_class = ActorSerializer
     permission_classes = (IsAdminOrReadOnly,)
 
+    @method_decorator(cache_page(60 * 60 * 24 * 5))
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
 
 class TheatreHallViewSet(viewsets.ModelViewSet):
     queryset = TheatreHall.objects.all()
     serializer_class = TheatreHallSerializer
     permission_classes = (IsAdminOrReadOnly,)
+
+    @method_decorator(cache_page(60 * 60 * 24 * 5))
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
 
 
 class PerformancePagination(PageNumberPagination):
@@ -153,6 +172,10 @@ class PlayViewSet(viewsets.ModelViewSet):
             return Response(serializer.data, status=status.HTTP_200_OK)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @method_decorator(cache_page(60 * 60 * 24))
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
 
 
 class ReservationPagination(PageNumberPagination):
