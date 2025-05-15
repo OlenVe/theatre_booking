@@ -10,7 +10,7 @@ from theatre_booking import settings
 
 
 
-def movie_image_file_path(instance, filename):
+def play_image_file_path(instance, filename):
     _, extension = os.path.splitext(filename)
     filename = f"{slugify(instance.title)}-{uuid.uuid4()}{extension}"
 
@@ -32,7 +32,7 @@ class Actor(models.Model):
         return self.first_name + " " + self.last_name
 
     @property
-    def full_name(self):
+    def full_name(self) -> str:
         return f"{self.first_name} {self.last_name}"
 
 
@@ -42,7 +42,7 @@ class Play(models.Model):
     acts = models.PositiveIntegerField()
     genre = models.ForeignKey(Genre, blank=True, null=True, on_delete=models.CASCADE)
     actors = models.ManyToManyField(Actor, blank=True)
-    image = models.ImageField(null=True, upload_to=movie_image_file_path)
+    image = models.ImageField(null=True, upload_to=play_image_file_path)
 
     def __str__(self):
         return self.title

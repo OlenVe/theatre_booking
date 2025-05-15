@@ -119,6 +119,9 @@ class PerformanceListSerializer(PerformanceSerializer):
 
 
 class TicketSeatsSerializer(serializers.ModelSerializer):
+    row = serializers.IntegerField(min_value=1)
+    seat = serializers.IntegerField(min_value=1)
+
     class Meta:
         model = Ticket
         fields = ("row", "seat")
@@ -141,7 +144,6 @@ class PerformanceDetailSerializer(PerformanceSerializer):
 class TicketSerializer(serializers.ModelSerializer):
     performance_title = serializers.CharField(write_only=True)
     performance_time = serializers.DateTimeField(write_only=True)
-    # reservation = serializers.BooleanField(write_only=True, default=False)
     performance = serializers.SerializerMethodField()
 
     class Meta:
@@ -152,10 +154,8 @@ class TicketSerializer(serializers.ModelSerializer):
             "performance_time",
             "row",
             "seat",
-            # "reservation",
             "performance",
         )
-        # read_only_fields = ("id", "reservation")
         read_only_fields = ("id", )
 
     def validate(self, data):
@@ -183,32 +183,32 @@ class TicketSerializer(serializers.ModelSerializer):
         return data
 
     def get_performance(self, obj):
-        performance_serializer = PerformanceSerializer(
-            instance=obj.performance, context=self.context
-        )
-        return performance_serializer.data
+        return PerformanceSerializer(obj.performance, context=self.context).data
 
     def create(self, validated_data):
-        validated_data.pop("performance_title")
-        validated_data.pop("performance_time")
-
-        # reservation_flag = validated_data.pop("reservation", False)
         performance = validated_data.pop("performance")
+        validated_data.pop("performance_title", None)
+        validated_data.pop("performance_time", None)
 
-        with transaction.atomic():
-            # reservation = None
-            # if reservation_flag:
-            user = self.context["request"].user
-            reservation = Reservation.objects.create(user=user)
-            validated_data.pop("reservation", None)
+        reservation = self.context.get("reservation")
+        if not reservation:
+            raise serializers.ValidationError("Reservation context required")
 
-            ticket = Ticket.objects.create(
-                performance=performance,
-                reservation=reservation,
-                **validated_data
+        row = validated_data["row"]
+        seat = validated_data["seat"]
+
+        if Ticket.objects.filter(performance=performance,
+                                 row=row,
+                                 seat=seat).exists():
+            raise serializers.ValidationError(
+                f"Seat {row}-{seat} is already taken for this performance."
             )
 
-
+        ticket = Ticket.objects.create(
+            performance=performance,
+            reservation=reservation,
+            **validated_data
+        )
         return ticket
 
 
@@ -257,70 +257,127 @@ class ReservationSerializer(serializers.ModelSerializer):
         fields = ("id", "tickets", "created_at")
 
     def create(self, validated_data):
+        tickets_data = validated_data.pop("tickets")
+        user = self.context["request"].user
+
         with transaction.atomic():
-            tickets_data = validated_data.pop("tickets")
-            reservation = Reservation.objects.create(**validated_data)
+            reservation = Reservation.objects.create(user=user)
+
             for ticket_data in tickets_data:
-                Ticket.objects.create(reservation=reservation, **ticket_data)
-            return reservation
+                serializer = TicketSerializer(
+                    data=ticket_data,
+                    context={**self.context, "reservation": reservation}
+                )
+                serializer.is_valid(raise_exception=True)
+                serializer.save()
+
+        return reservation
 
 
 class ReservationListSerializer(ReservationSerializer):
     tickets = TicketListSerializer(many=True, read_only=True)
 
 
-class ReservationCreateSerializer(serializers.ModelSerializer):
-    tickets = TicketSeatsSerializer(many=True)
-
-    class Meta:
-        model = Reservation
-        fields = (
-            "id",
-            "tickets",
-            "user",
-            "created_at",
-        )
-
-    def get_tickets(self, obj):
-        tickets = obj.tickets.all()
-        return [ticket.show_session.astronomy_show.title for ticket in tickets]
-
-
 class TicketBulkCreateSerializer(serializers.Serializer):
-    tickets = TicketSeatsSerializer(many=True)
+    tickets = TicketSeatsSerializer(many=True, allow_empty=False)
     performance_title = serializers.CharField()
-    performance_time = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S")
+    performance_time = serializers.DateTimeField()
 
     def validate(self, attrs):
         title = attrs["performance_title"]
         time = attrs["performance_time"]
 
         performances = Performance.objects.filter(
-            play__title=title, show_time=time
+            play__title=title,
+            show_time=time
         )
         if not performances.exists():
-            raise serializers.ValidationError("Wrong time")
+            raise serializers.ValidationError("Wrong title or time.")
         if performances.count() > 1:
-            raise serializers.ValidationError("Chose only 1 performance")
+            raise serializers.ValidationError("Multiple performances found.")
+
         attrs["performance"] = performances.first()
         return attrs
+
+    # def create(self, validated_data):
+    #     performance = validated_data["performance"]
+    #     tickets_data = validated_data["tickets"]
+    #     user = self.context["request"].user
+    #
+    #     theatre_hall = performance.theatre_hall
+    #
+    #     for ticket in tickets_data:
+    #         Ticket.validate_ticket(
+    #             row=ticket["row"],
+    #             seat=ticket["seat"],
+    #             theatre_hall=theatre_hall,
+    #             error_to_raise=serializers.ValidationError
+    #         )
+    #
+    #     for ticket in tickets_data:
+    #         exists = Ticket.objects.filter(
+    #             performance=performance,
+    #             row=ticket["row"],
+    #             seat=ticket["seat"]
+    #         ).exists()
+    #         if exists:
+    #             raise serializers.ValidationError(
+    #                 f"Ticket at row {ticket['row']}, seat {ticket['seat']} is already taken."
+    #             )
+    #
+    #     with transaction.atomic():
+    #         reservation = Reservation.objects.create(user=user)
+    #         tickets = [
+    #             Ticket(
+    #                 performance=performance,
+    #                 reservation=reservation,
+    #                 row=ticket["row"],
+    #                 seat=ticket["seat"]
+    #             )
+    #             for ticket in tickets_data
+    #         ]
+    #         Ticket.objects.bulk_create(tickets)
+    #
+    #     return reservation
 
     def create(self, validated_data):
         performance = validated_data["performance"]
         tickets_data = validated_data["tickets"]
-        user = self.context["request"].user
+        reservation = self.context["reservation"]
+        theatre_hall = performance.theatre_hall
 
-        with transaction.atomic():
-            reservation = Reservation.objects.create(user=user)
-            tickets = [
-                Ticket(
-                    performance=performance,
-                    reservation=reservation,
-                    row=ticket["row"],
-                    seat=ticket["seat"]
-                )
-                for ticket in tickets_data
-            ]
-            Ticket.objects.bulk_create(tickets)
+        created_tickets = []
+
+        for ticket in tickets_data:
+            Ticket.validate_ticket(
+                row=ticket["row"],
+                seat=ticket["seat"],
+                theatre_hall=theatre_hall,
+                error_to_raise=serializers.ValidationError
+            )
+
+        for ticket in tickets_data:
+            ticket_serializer = TicketSerializer(
+                data={
+                    "row": ticket["row"],
+                    "seat": ticket["seat"],
+                    "performance_title": validated_data["performance_title"],
+                    "performance_time": validated_data["performance_time"]
+                },
+                context={**self.context, "reservation": reservation}
+            )
+            ticket_serializer.is_valid(raise_exception=True)
+            created_tickets.append(ticket_serializer.save())
 
         return reservation
+
+
+class ReservationCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Reservation
+        fields = ("id", "created_at")
+        read_only_fields = ("id", "created_at")
+
+    def create(self, validated_data):
+        user = self.context["request"].user
+        return Reservation.objects.create(user=user)

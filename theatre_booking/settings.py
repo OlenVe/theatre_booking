@@ -35,9 +35,11 @@ AUTH_USER_MODEL = "visitor.User"
 INSTALLED_APPS = [
     "visitor",
     "theatre",
+    "django_filters",
     "rest_framework",
     "drf_spectacular",
     "debug_toolbar",
+
     "django.contrib.auth",
     "django.contrib.admin",
     "django.contrib.contenttypes",
@@ -147,6 +149,7 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
+    "DEFAULT_FILTER_BACKENDS": ["django_filters.rest_framework.DjangoFilterBackend"],
 }
 
 SPECTACULAR_SETTINGS = {

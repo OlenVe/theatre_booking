@@ -24,8 +24,10 @@ class ManageUserView(generics.RetrieveUpdateAPIView):
 
 
 class TelegramAuthView(APIView):
+    serializer_class = TelegramAuthSerializer
+
     def post(self, request, *args, **kwargs):
-        serializer = TelegramAuthSerializer(data=request.data)
+        serializer = self.serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data["user"]
 
