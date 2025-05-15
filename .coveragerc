@@ -1,0 +1,16 @@
+[run]
+omit =
+    */migrations/*
+    */tests/*
+    manage.py
+    */admin.py
+    */__init__.py
+
+[report]
+exclude_lines =
+    pragma: no cover
+    if self\.debug
+    if settings\.DEBUG
+    raise NotImplementedError
+
+    if __name__ == .__main__.:

@@ -299,12 +299,14 @@ class TicketBulkCreateSerializer(serializers.Serializer):
         attrs["performance"] = performances.first()
         return attrs
 
+
     # def create(self, validated_data):
     #     performance = validated_data["performance"]
     #     tickets_data = validated_data["tickets"]
-    #     user = self.context["request"].user
-    #
+    #     reservation = self.context["reservation"]
     #     theatre_hall = performance.theatre_hall
+    #
+    #     created_tickets = []
     #
     #     for ticket in tickets_data:
     #         Ticket.validate_ticket(
@@ -315,28 +317,17 @@ class TicketBulkCreateSerializer(serializers.Serializer):
     #         )
     #
     #     for ticket in tickets_data:
-    #         exists = Ticket.objects.filter(
-    #             performance=performance,
-    #             row=ticket["row"],
-    #             seat=ticket["seat"]
-    #         ).exists()
-    #         if exists:
-    #             raise serializers.ValidationError(
-    #                 f"Ticket at row {ticket['row']}, seat {ticket['seat']} is already taken."
-    #             )
-    #
-    #     with transaction.atomic():
-    #         reservation = Reservation.objects.create(user=user)
-    #         tickets = [
-    #             Ticket(
-    #                 performance=performance,
-    #                 reservation=reservation,
-    #                 row=ticket["row"],
-    #                 seat=ticket["seat"]
-    #             )
-    #             for ticket in tickets_data
-    #         ]
-    #         Ticket.objects.bulk_create(tickets)
+    #         ticket_serializer = TicketSerializer(
+    #             data={
+    #                 "row": ticket["row"],
+    #                 "seat": ticket["seat"],
+    #                 "performance_title": validated_data["performance_title"],
+    #                 "performance_time": validated_data["performance_time"]
+    #             },
+    #             context={**self.context, "reservation": reservation}
+    #         )
+    #         ticket_serializer.is_valid(raise_exception=True)
+    #         created_tickets.append(ticket_serializer.save())
     #
     #     return reservation
 
@@ -348,26 +339,27 @@ class TicketBulkCreateSerializer(serializers.Serializer):
 
         created_tickets = []
 
-        for ticket in tickets_data:
+        for ticket_data in tickets_data:
             Ticket.validate_ticket(
-                row=ticket["row"],
-                seat=ticket["seat"],
+                row=ticket_data["row"],
+                seat=ticket_data["seat"],
                 theatre_hall=theatre_hall,
                 error_to_raise=serializers.ValidationError
             )
 
-        for ticket in tickets_data:
-            ticket_serializer = TicketSerializer(
-                data={
-                    "row": ticket["row"],
-                    "seat": ticket["seat"],
-                    "performance_title": validated_data["performance_title"],
-                    "performance_time": validated_data["performance_time"]
-                },
+            full_ticket_data = {
+                **ticket_data,
+                "performance_title": validated_data["performance_title"],
+                "performance_time": validated_data["performance_time"]
+            }
+
+            serializer = TicketSerializer(
+                data=full_ticket_data,
                 context={**self.context, "reservation": reservation}
             )
-            ticket_serializer.is_valid(raise_exception=True)
-            created_tickets.append(ticket_serializer.save())
+            serializer.is_valid(raise_exception=True)
+            ticket = serializer.save()
+            created_tickets.append(ticket)
 
         return reservation
 
