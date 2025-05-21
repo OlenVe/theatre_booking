@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from django.db import transaction
 from django.db.models import F, Count
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
@@ -32,9 +33,9 @@ from theatre.serializers import (
     PerformanceSerializer,
     PerformanceListSerializer,
     PerformanceDetailSerializer,
-    TicketSerializer,
     TicketListSerializer,
-    TicketDetailSerializer, TicketBulkCreateSerializer, ReservationCreateSerializer,
+    TicketDetailSerializer,
+    ReservationCreateSerializer,
 )
 
 
@@ -83,7 +84,7 @@ class PerformanceViewSet(viewsets.ModelViewSet):
                 - Count("tickets")
             )
         )
-    )
+    ).order_by("show_time")
     serializer_class = PerformanceSerializer
     pagination_class = PerformancePagination
     permission_classes = (IsAdminOrReadOnly,)
@@ -137,7 +138,7 @@ class PlayViewSet(viewsets.ModelViewSet):
 
         if genres:
             genres_ids = self._params_to_ints(genres)
-            queryset = queryset.filter(genres__id=genres_ids)
+            queryset = queryset.filter(genres__id__in=genres_ids)
 
         if actors:
             actors_ids = self._params_to_ints(actors)
@@ -187,7 +188,8 @@ class ReservationPagination(PageNumberPagination):
 class ReservationViewSet(viewsets.ModelViewSet):
     queryset = Reservation.objects.prefetch_related(
         "tickets__performance__play", "tickets__performance__theatre_hall"
-    )
+    ).order_by("-created_at")
+
     serializer_class = ReservationSerializer
     pagination_class = ReservationPagination
     permission_classes = (IsAuthenticated,)
@@ -195,66 +197,20 @@ class ReservationViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return self.queryset.filter(user=self.request.user)
 
-
     def get_serializer_class(self):
         if self.action == "list":
             return ReservationListSerializer
-        if self.action == "create":
+        elif self.action == "create":
             return ReservationCreateSerializer
-
-        return self.serializer_class
-
-    def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
-
-
-class TicketViewSet(viewsets.ModelViewSet):
-    queryset = Ticket.objects.all()
-    serializer_class = TicketSerializer
-    permission_classes = (IsAuthenticated,)
-
-    def get_queryset(self):
-        queryset = self.queryset
-        title = self.request.query_params.get("title")
-        if title:
-            queryset = queryset.filter(performance__play__title=title)
-
-        return queryset
-
-    def get_serializer_class(self):
-        if self.action == "list":
-            return TicketListSerializer
-        elif self.action == "retrieve":
-            return TicketDetailSerializer
-        elif self.action == "bulk_create":
-            return TicketBulkCreateSerializer
-        return TicketSerializer
+        return ReservationSerializer
 
     def perform_create(self, serializer):
-        user = self.request.user
-        reservation = Reservation.objects.create(user=user)
-
-        serializer.context["reservation"] = reservation
         serializer.save()
 
-    @action(
-        methods=["POST"],
-        detail=False,
-        url_path="bulk-create",
-        permission_classes=[IsAuthenticated]
-    )
-    def bulk_create(self, request):
-
-        user = request.user
-        reservation = Reservation.objects.create(user=user)
-
-
-        serializer = TicketBulkCreateSerializer(
-            data=request.data,
-            context={"request": request, "reservation": reservation}
-        )
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
-
-        return Response(ReservationSerializer(reservation).data,
-                        status=status.HTTP_201_CREATED)
+        self.perform_create(serializer)
+        instance = serializer.instance
+        response_serializer = ReservationSerializer(instance, context={'request': request})
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
