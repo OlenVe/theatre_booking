@@ -1,0 +1,58 @@
+services:
+  web:
+    build:
+      context: .
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    command: >
+      sh -c "python manage.py migrate && exec python manage.py runserver 0.0.0.0:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./:/app
+      - my_media:/app/media
+
+  db:
+    image: postgres:16.0-alpine3.17
+    restart: always
+    env_file:
+      - .env
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U theatre" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5432:5432"
+    volumes:
+      - my_db:$PGDATA
+
+  bot:
+    build:
+      context: .
+    command: python bot.py
+    volumes:
+      - .:/app
+    depends_on:
+      - web
+      - redis
+      - db
+    restart: always
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    restart: always
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 8s
+      timeout: 3s
+      retries: 6
+
+volumes:
+  my_db:
+  my_media:
